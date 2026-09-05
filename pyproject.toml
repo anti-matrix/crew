@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crew"
+version = "0.1.0"
+description = "Real-time multi-agent orchestrator for opencode. Python owns the graph; opencode serve is the agent runtime."
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.27"]
+
+[tool.setuptools]
+packages = ["crew"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

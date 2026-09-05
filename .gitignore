@@ -1,0 +1,10 @@
+escribe_transcript.md
+escribe_context.md
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.opencode/
+.env
+.env.*
