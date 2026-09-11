@@ -1,15 +1,22 @@
 """CLI.
 
 Default flow — ``python crew.py``:
-    1. Opens the opencode TUI in the project (`--cwd`, default: current dir).
-    2. Once it's up, gives it an initial prompt: ``--goal`` if passed, piped
-       stdin if piped, otherwise a default greeting so the crew opens by
-       asking what you want to build.
+    1. Boots a short-lived headless opencode server in the project (`--cwd`,
+       default: current dir) and has **Alpha** answer the opening prompt
+       (``--goal`` if passed, piped stdin if piped, otherwise a default
+       greeting) — so the crew session exists before any window shows.
+    2. Opens the opencode TUI directly on that session
+       (``opencode -s <session>``), greeting already answered, Alpha front
+       and center.
     3. Stays attached until you quit the TUI.
+
+Why this shape: the TUI control endpoints (append/submit/execute-command)
+silently do nothing in opencode 1.18.29, so we never drive the TUI — we create
+the session server-side and resume into it, exactly like ``opencode -s``.
 
 Additional modes:
     ``python crew.py --url http://localhost:4096 --goal "..."``
-        Push the prompt into a TUI/server you already have open (no spawn).
+        Create the crew session on a server/TUI you already have open.
     ``python crew.py --headless ...``
         Skip the TUI entirely and run a full supervisor round (spawns its own
         server if no ``--url``).
@@ -24,6 +31,7 @@ import sys
 
 from . import log
 from .opencode import OpenCode, OpenCodeError
+from .roles import ROLES
 from .supervisor import Supervisor
 
 DEFAULT_PORT = 4096
@@ -97,23 +105,68 @@ def _kill_tree(proc: asyncio.subprocess.Process) -> None:
         pass
 
 
-async def _give_prompt(oc: OpenCode, text: str | None) -> None:
-    prompt = text or DEFAULT_OPENING
-    try:
-        await oc.append_prompt(prompt)
-        await oc.submit_prompt()
-        log.info("initial prompt submitted")
-    except OpenCodeError as e:
-        log.warn(f"could not submit initial prompt: {e}")
+async def _make_crew_session(oc: OpenCode, text: str) -> str:
+    """Create the crew session server-side and have Alpha answer the opening
+    prompt. Returns the session id."""
+    role = ROLES["alpha"]
+    data = await oc.create_session(title=f"crew — {text[:48]}")
+    sid = data["id"]
+    tried: list[tuple[str, str]] = []
+    for idx, (provider, model) in enumerate(role.candidates):
+        tried.append((provider, model))
+        try:
+            await oc.prompt(sid, text, agent="alpha", provider=provider, model=model)
+            return sid
+        except OpenCodeError as e:
+            if idx < len(role.candidates) - 1:
+                nxt_provider, nxt_model = role.candidates[idx + 1]
+                log.warn(
+                    f"alpha greeting: {provider}/{model} failed ({e}); "
+                    f"falling back to {nxt_provider}/{nxt_model}"
+                )
+            else:
+                tried_str = ", ".join(f"{p}/{m}" for p, m in tried)
+                log.warn(
+                    f"alpha greeting turn failed ({e}); tried {tried_str}; "
+                    f"the session still has your prompt"
+                )
+    return sid
 
 
-async def _tui_flow(oc: OpenCode, cwd: str, opening: str | None, port: int) -> int:
-    log.section("OPENING OPENCODE TUI")
-    log.info(f"project: {cwd}  port: {port}")
-    proc = await _spawn(f"opencode --port {port}", cwd)
+async def _spawn_headless(cwd: str, port: int) -> tuple[asyncio.subprocess.Process, int]:
+    """Start a headless server, trying a few ports in case the first is
+    occupied. Returns the process and the port that actually worked."""
+    last_err: Exception | None = None
+    for p in (port, port + 1, port + 2, port + 3):
+        proc = await _spawn(f"opencode serve --port {p}", cwd)
+        try:
+            await _wait_ready(OpenCode(f"http://127.0.0.1:{p}"), proc, 20.0)
+            return proc, p
+        except Exception as e:  # port busy or boot failure — try the next one
+            last_err = e
+            _kill_tree(proc)
+    raise OpenCodeError(f"could not start a headless opencode server: {last_err}")
+
+
+async def _tui_flow(cwd: str, opening: str | None, port: int) -> int:
+    log.section("OPENING THE CREW")
+    log.info(f"project: {cwd}")
+    prompt_text = opening or DEFAULT_OPENING
+
+    # Phase 1: create the crew session headlessly and let Alpha answer.
+    headless, headless_port = await _spawn_headless(cwd, port)
+    log.info("crewing up — Alpha is answering the opening prompt…")
     try:
-        await _wait_ready(oc, proc, READY_TIMEOUT_S)
-        await _give_prompt(oc, opening)
+        sid = await _make_crew_session(
+            OpenCode(f"http://127.0.0.1:{headless_port}"), prompt_text
+        )
+    finally:
+        _kill_tree(headless)
+
+    # Phase 2: resume the TUI straight into that session.
+    log.info(f"opening the TUI on crew session {sid}")
+    proc = await _spawn(f"opencode -s {sid}", cwd)
+    try:
         log.info("TUI open — interact normally, quit when done")
         code = await proc.wait()
         log.info(f"opencode exited ({code or 0})")
@@ -154,7 +207,8 @@ async def main(argv: list[str]) -> int:
 
     opening = args.goal or _read_piped()
     if args.url:
-        log.info(f"pushing prompt into {args.url}")
-        await _give_prompt(oc, opening)
+        log.info(f"creating crew session on {args.url}")
+        sid = await _make_crew_session(oc, opening or DEFAULT_OPENING)
+        log.info(f"crew session created: {sid} — open it in your TUI session list")
         return 0
-    return await _tui_flow(oc, cwd, opening, args.port)
+    return await _tui_flow(cwd, opening, args.port)

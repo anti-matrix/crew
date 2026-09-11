@@ -11,7 +11,6 @@ from typing import Any, Literal
 AgentName = Literal[
     "alpha",
     "omega",
-    "bureaucrat",
     "academic",
     "amodei",
     "peer-reviewer",
@@ -53,7 +52,6 @@ class Message:  # pragma: no cover - plain data holder, kept minimal
 AGENTS: tuple[AgentName, ...] = (
     "alpha",
     "omega",
-    "bureaucrat",
     "academic",
     "amodei",
     "peer-reviewer",
@@ -64,7 +62,6 @@ AGENTS: tuple[AgentName, ...] = (
 LANES: dict[AgentName, tuple[str, ...]] = {
     "alpha": ("plan",),
     "omega": ("plan",),
-    "bureaucrat": ("dispatch",),
     "academic": ("work",),
     "amodei": ("work",),
     "peer-reviewer": ("work",),

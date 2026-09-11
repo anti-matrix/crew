@@ -16,7 +16,7 @@ Lane = Literal["plan", "dispatch", "work", "audit", "report"]
 
 
 class Role:
-    __slots__ = ("lane", "provider", "model", "can_write")
+    __slots__ = ("lane", "provider", "model", "can_write", "fallback")
 
     def __init__(
         self,
@@ -24,22 +24,51 @@ class Role:
         provider: str,
         model: str,
         can_write: bool,
+        fallback: tuple[str, str] | None = None,
     ) -> None:
         self.lane = lane
         self.provider = provider
         self.model = model
         self.can_write = can_write
+        self.fallback = fallback
+
+    @property
+    def candidates(self) -> list[tuple[str, str]]:
+        """Provider/model pairs to try, primary first, fallback second."""
+        pairs: list[tuple[str, str]] = [(self.provider, self.model)]
+        if self.fallback is not None:
+            pairs.append(self.fallback)
+        return pairs
 
 
 ROLES: dict[AgentName, Role] = {
-    "alpha": Role("plan", "opencode-go", "deepseek-v4-flash", can_write=False),
+    "alpha": Role(
+        "plan", "opencode-go", "deepseek-v4-pro",
+        can_write=False,
+        fallback=("opencode", "deepseek-v4-flash"),
+    ),
     "omega": Role("plan", "opencode-go", "kimi-k2.7-code", can_write=False),
-    "bureaucrat": Role("dispatch", "opencode-go", "deepseek-v4-flash", can_write=False),
-    "academic": Role("work", "opencode-go", "deepseek-v4-flash", can_write=False),
+    "academic": Role(
+        "work", "opencode-go", "deepseek-v4-pro",
+        can_write=False,
+        fallback=("opencode", "deepseek-v4-flash"),
+    ),
     "amodei": Role("work", "opencode-go", "kimi-k2.7-code", can_write=True),
-    "peer-reviewer": Role("work", "opencode-go", "deepseek-v4-flash", can_write=False),
-    "escribe": Role("audit", "opencode-go", "deepseek-v4-flash", can_write=True),
-    "benjamin": Role("audit", "opencode-go", "deepseek-v4-flash", can_write=False),
+    "peer-reviewer": Role(
+        "work", "opencode-go", "deepseek-v4-pro",
+        can_write=False,
+        fallback=("opencode", "deepseek-v4-flash"),
+    ),
+    "escribe": Role(
+        "audit", "opencode-go", "deepseek-v4-pro",
+        can_write=True,
+        fallback=("opencode", "deepseek-v4-flash"),
+    ),
+    "benjamin": Role(
+        "audit", "opencode-go", "deepseek-v4-pro",
+        can_write=False,
+        fallback=("opencode", "deepseek-v4-flash"),
+    ),
 }
 
 

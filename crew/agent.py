@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from . import log
 from .jsonx import extract_json
 from .opencode import OpenCode, extract_text
 from .roles import Role
@@ -48,16 +49,45 @@ class Agent:
                 "\n\nIMPORTANT: respond with a single JSON object only — no markdown "
                 "code fences, no commentary."
             )
-        try:
-            res = await self.oc.prompt(
-                self.session_id,
-                text,
-                agent=self.name,
-                provider=self.role.provider,
-                model=self.role.model,
-            )
-            reply_text = extract_text(res.get("parts"))
-            structured = extract_json(reply_text) if json_out else None
+
+        last_error: str | None = None
+
+        for idx, (provider, model) in enumerate(self.role.candidates):
+            try:
+                res = await self.oc.prompt(
+                    self.session_id,
+                    text,
+                    agent=self.name,
+                    provider=provider,
+                    model=model,
+                )
+                reply_text = extract_text(res.get("parts"))
+            except Exception as e:
+                last_error = str(e)
+                if idx < len(self.role.candidates) - 1:
+                    nxt_provider, nxt_model = self.role.candidates[idx + 1]
+                    log.warn(
+                        f"{self.name}: {provider}/{model} failed ({e}); "
+                        f"falling back to {nxt_provider}/{nxt_model}"
+                    )
+                continue
+
+            if text.strip() and not reply_text.strip():
+                last_error = f"empty response from {provider}/{model}"
+                if idx < len(self.role.candidates) - 1:
+                    nxt_provider, nxt_model = self.role.candidates[idx + 1]
+                    log.warn(
+                        f"{self.name}: {provider}/{model} returned empty; "
+                        f"falling back to {nxt_provider}/{nxt_model}"
+                    )
+                continue
+
+            try:
+                structured = extract_json(reply_text) if json_out else None
+            except Exception as e:
+                return AgentReply(text="", error=str(e))
+
             return AgentReply(text=reply_text, structured=structured)
-        except Exception as e:  # network / server errors only
-            return AgentReply(text="", error=str(e))
+
+        log.warn(f"{self.name}: all candidates failed; last error: {last_error}")
+        return AgentReply(text="", error=last_error)

@@ -49,6 +49,12 @@ class OpenCode:
             r = await c.post(f"{self.base_url}/tui/submit-prompt")
         return self._ok(r, "submit-prompt")
 
+    async def execute_command(self, command: str) -> dict[str, Any]:
+        """Execute a TUI slash command, e.g. ``/team <args>``."""
+        async with httpx.AsyncClient(timeout=self.timeout) as c:
+            r = await c.post(f"{self.base_url}/tui/execute-command", json={"command": command})
+        return self._ok(r, "execute-command")
+
     async def create_session(self, title: str) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=self.timeout) as c:
             r = await c.post(f"{self.base_url}/session", json={"title": title})

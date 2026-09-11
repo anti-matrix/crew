@@ -3,7 +3,7 @@
 Real-time multi-agent orchestrator for opencode, written in **Python**.
 
 It replaces the turn-based, synchronous native subagent tree (Alpha → Omega →
-Bureaucrat → workers via the `Task` tool) with **warm, long-lived agent
+workers via the `Task` tool) with **warm, long-lived agent
 sessions** driven by a deterministic async supervisor. opencode is just the
 agent runtime; Python owns the graph.
 
@@ -19,7 +19,7 @@ agent runtime; Python owns the graph.
         └──────────────┬──────────────┘
                        │ spec
                        ▼
-                   BUREAUCRAT            ← dispatch plan (structured JSON)
+                      ALPHA             ← dispatch plan (structured JSON)
                        │
           ┌────────────┴────────────┐
           ▼            ▼            ▼
@@ -62,16 +62,20 @@ python -m pip install -e .          # installs httpx dependency
 
 ## Run
 
-The default flow opens the opencode TUI in your project and hands it an
-initial prompt:
+The default flow opens the crew in one command:
 
 ```bash
 cd crew
 python crew.py --cwd "C:\path\to\project"
 ```
 
-The TUI opens with the crew greeting you; type your request and interact
-normally. `--goal` is optional and only pre-seeds the initial prompt:
+What happens: a short-lived headless server creates the crew session and has
+**Alpha** answer the opening prompt ("Alpha, the crew is assembled. Greet me
+and ask what we're working on."), then the opencode TUI opens directly on that
+session — Alpha front and center, greeting already answered. You just type
+your request and go.
+
+`--goal` is optional and becomes the opening prompt instead of the greeting:
 
 ```bash
 python crew.py --cwd "C:\path\to\project" --goal "add a dark mode toggle"
@@ -84,14 +88,16 @@ Skip the TUI and run one full orchestrator round headless:
 python crew.py --headless --cwd "C:\path\to\project" --goal "your request"
 ```
 
-Already have a TUI open (started with `opencode --port 4096`)? Push into it:
+Create the crew session on a server/TUI you already have running:
 
 ```bash
 python crew.py --url http://localhost:4096 --goal "your request"
 ```
 
-Your normal opencode TUI is a separate process — this one reads the same agent
-definitions and credentials but shares no sessions or state.
+Note for 1.18.29: the TUI control endpoints (`/tui/app-submit`, `execute-command`)
+silently do nothing, so crew.py never drives a TUI — it creates the session
+server-side and resumes into it with `opencode -s`, exactly how your own
+resumed windows work.
 
 ## Configuration
 
@@ -104,8 +110,8 @@ definitions and credentials but shares no sessions or state.
 
 ## The crew (unchanged roles)
 
-`alpha` (front door, accepts/rejects) · `omega` (planner) · `bureaucrat`
-(dispatcher) · `academic` (research) · `amodei` (implementer, sole writer) ·
+`alpha` (front door, accepts/rejects, dispatches) · `omega` (planner) ·
+`academic` (research) · `amodei` (implementer, sole writer) ·
 `peer-reviewer` (review) · `escribe` (archivist) · `benjamin` (audit/report).
 
 ## Files

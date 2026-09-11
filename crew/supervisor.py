@@ -7,7 +7,7 @@ Round shape:
 
     interpret (alpha) ──► plan (alpha <─► omega handshake)
        ──► refine (omega + benjamin preflight, user-answered)
-       ──► dispatch (bureaucrat ──► task graph)
+       ──► dispatch (alpha ──► task graph)
        ──► execute (workers in dependency-ordered parallel waves)
        ──► review (peer-reviewer)
        ──► audit (escribe + benjamin loop, quiescence-detected)
@@ -67,7 +67,7 @@ class Supervisor:
 
         tasks = await self.dispatch(plan)
         if not tasks:
-            log.warn("bureaucrat produced no tasks")
+            log.warn("alpha produced no tasks")
             return {"status": "aborted", "reason": "no tasks"}
 
         results = await self.execute(tasks)
@@ -125,7 +125,7 @@ class Supervisor:
                 f"user answers={context['answers']}"
                 + (f"\nAlpha's prior objections to address: {context['objections']}"
                    if context.get("objections") else "")
-                + "\n\nThe spec must be executable by Bureaucrat and the workers in one pass. "
+                + "\n\nThe spec must be executable by Alpha and the workers in one pass. "
                 "Reply with JSON only.",
                 json_out=True,
             )
@@ -204,8 +204,8 @@ class Supervisor:
     # -- phase 3: dispatch -----------------------------------------
 
     async def dispatch(self, plan: str) -> list[dict]:
-        bureaucrat = self.get("bureaucrat")
-        reply = await bureaucrat.send(
+        alpha = self.get("alpha")
+        reply = await alpha.send(
             f'Turn this spec into the fewest, most focused tasks that fully cover it, with dependencies:\n\n"""{plan}"""\n\n'
             "Choose a worker per task: academic (research/read), amodei (implement/edit), "
             "peer-reviewer (review). Amodei is the only writer. Reply with JSON only.",

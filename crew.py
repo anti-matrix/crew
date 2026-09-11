@@ -2,16 +2,16 @@
 """crew — open the crew with one command.
 
 Usage:
-    python crew.py                          # open the TUI, crew greets you
+    python crew.py                          # TUI opens on the crew session, Alpha greets you
     python crew.py --cwd <project>          # ...inside a specific project
-    python crew.py --goal "your request"    # TUI opens with this already submitted
+    python crew.py --goal "your request"    # that becomes the opening prompt
     echo "your request" | python crew.py    # same as --goal, via pipe
     python crew.py --headless --goal "..."  # no TUI; run one orchestrator round
-    python crew.py --url http://localhost:4096 --goal "..."   # push into an open TUI
+    python crew.py --url http://localhost:4096 --goal "..."   # make the session on an existing server
 
-Opens the opencode TUI in the project (default: current dir), waits for it,
-then submits the initial prompt (--goal, piped stdin, or a default greeting).
-Stays attached until you quit the TUI.
+How it works: a short-lived headless server creates the crew session and has
+Alpha answer the opening prompt, then the opencode TUI opens *directly on that
+session* (opencode -s) — greeting answered, Alpha front and center.
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
-"""The routing table — the code form of the prose that used to live in
-``bureaucrat.md``.
+"""The routing table — the code form of the prose that used to live in the
+dispatcher's role.
 
 Declares the valid lanes between agents. The supervisor validates every message
 against it so no agent can reach outside its lane.
@@ -16,10 +16,9 @@ from .types import AgentName
 ROUTES: dict[AgentName, tuple[str, ...]] = {
     "alpha": ("omega", "user"),
     "omega": ("alpha",),
-    "bureaucrat": ("alpha", "omega"),
-    "academic": ("alpha", "omega", "bureaucrat", "orchestrator"),
-    "amodei": ("alpha", "omega", "bureaucrat", "orchestrator"),
-    "peer-reviewer": ("alpha", "omega", "bureaucrat", "orchestrator"),
+    "academic": ("alpha", "omega", "orchestrator"),
+    "amodei": ("alpha", "omega", "orchestrator"),
+    "peer-reviewer": ("alpha", "omega", "orchestrator"),
     "escribe": ("alpha", "omega", "benjamin"),
     "benjamin": ("alpha", "user", "orchestrator"),
 }
